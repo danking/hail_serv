@@ -12,12 +12,6 @@ from .logger import AccessLogger
 N_CORES = 4
 HTTP_CLIENT_MAX_SIZE = 8 * 1024 * 1024
 LOG = logging.getLogger('hail_serv')
-ROUTES = web.RouteTableDef()
-
-
-async def on_startup(app: web.Application):
-    del app
-    hl.init(local=f'local[{N_CORES}]', backend='spark')
 
 
 async def on_cleanup(app: web.Application):
@@ -33,28 +27,34 @@ def json_response(a: Any) -> web.Response:
     return web.json_response(body=orjson.dumps(a))
 
 
-@ROUTES.post('/search')
-async def search(request: web.Request) -> web.Response:
-    request = await json_request(request)
-    intervals = request.get('intervals', [])
-    mt = hl.read_matrix_table('the-dataset.mt')
-    if intervals:
-        parsed_intervals = [hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
-         for interval in intervals]
-        mt = hl.filter_intervals(mt, parsed_intervals)
-    results = mt.GT.collect()
-    return json_response(results)
+class HailServ:
+    def __init__(self):
+        hl.init(local=f'local[{N_CORES}]', backend='spark')
+        self.mt = hl.read_matrix_table('the-dataset.mt')
+
+    async def search(self, request: web.Request) -> web.Response:
+        mt = self.mt
+        request = await json_request(request)
+        intervals = request.get('intervals', [])
+        if intervals:
+            mt = hl.filter_intervals(
+                mt,
+                [
+                    hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
+                    for interval in intervals
+                ]
+            )
+        results = mt.GT.collect()
+        return json_response(results)
 
 
 def run():
+    hail_serv = HailServ()
     app = web.Application(
         client_max_size=HTTP_CLIENT_MAX_SIZE
     )
-    app.add_routes(ROUTES)
-
-    app.on_startup.append(on_startup)
     app.on_cleanup.append(on_cleanup)
-
+    app.add_routes([web.post('/search/', hail_serv.search)])
     web.run_app(
         app,
         host='0.0.0.0',
