@@ -1,2 +1,4 @@
 aiohttp>3,<4
-
+hail==0.2.115
+python-json-logger>2,<3
+orjson>3,<4
