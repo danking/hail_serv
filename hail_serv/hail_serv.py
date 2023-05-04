@@ -39,9 +39,9 @@ async def search(request: web.Request) -> web.Response:
     intervals = request.get('intervals', [])
     ht = hl.read_matrix_table('the-dataset.mt')
     if intervals:
-        [hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
+        parsed_intervals = [hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
          for interval in intervals]
-        ht = hl.filter_intervals(ht, intervals)
+        ht = hl.filter_intervals(ht, parsed_intervals)
     results = ht.collect()
     return json_response(results)
 
