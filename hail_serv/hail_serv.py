@@ -1,5 +1,6 @@
 from typing import Any
 import logging
+import asyncio
 import os
 
 import hail as hl
@@ -37,21 +38,23 @@ class HailServ:
     def __init__(self):
         hl.init(local=f'local[{N_CORES}]', backend='spark')
         self.mt = hl.read_matrix_table('the-dataset.mt')
+        self.hail_lock = asyncio.Lock()
 
     async def search(self, request: web.Request) -> web.Response:
-        mt = self.mt
-        request = await json_request(request)
-        intervals = request.get('intervals', [])
-        if intervals:
-            mt = hl.filter_intervals(
-                mt,
-                [
-                    hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
-                    for interval in intervals
-                ]
-            )
-        results = mt.GT.collect()
-        return json_response(results)
+        async with self.hail_lock:
+            mt = self.mt
+            request = await json_request(request)
+            intervals = request.get('intervals', [])
+            if intervals:
+                mt = hl.filter_intervals(
+                    mt,
+                    [
+                        hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
+                        for interval in intervals
+                    ]
+                )
+            results = mt.GT.collect()
+            return json_response(results)
 
 
 def run():
