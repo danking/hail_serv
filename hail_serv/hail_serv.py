@@ -37,12 +37,12 @@ def json_response(a: Any) -> web.Response:
 async def search(request: web.Request) -> web.Response:
     request = await json_request(request)
     intervals = request.get('intervals', [])
-    ht = hl.read_matrix_table('the-dataset.mt')
+    mt = hl.read_matrix_table('the-dataset.mt')
     if intervals:
         parsed_intervals = [hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
          for interval in intervals]
-        ht = hl.filter_intervals(ht, parsed_intervals)
-    results = ht.collect()
+        mt = hl.filter_intervals(mt, parsed_intervals)
+    results = mt.GT.collect()
     return json_response(results)
 
 
