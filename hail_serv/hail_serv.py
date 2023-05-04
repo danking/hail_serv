@@ -37,7 +37,7 @@ def json_response(a: Any) -> web.Response:
 async def search(request: web.Request) -> web.Response:
     request = await json_request(request)
     intervals = request.get('intervals', [])
-    ht = hl.read_table('the-table.ht')
+    ht = hl.read_matrix_table('the-dataset.mt')
     if intervals:
         [hl.locus_interval(interval['chrom'], interval['start'], interval['end'])
          for interval in intervals]
